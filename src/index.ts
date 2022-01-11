@@ -130,6 +130,7 @@ export default class TorusSolanaSdk {
     }
 
     getResults(linkingObject: any, callback: (event: any, type?: CallbackMsgType) => void) { 
+        console.log(linkingObject, callback)
         this._resultCallback = callback;
         linkingObject.addEventListener('url', (resultUrl: any) => { 
             callback({result : atob(`${new URLSearchParams(resultUrl.url).get('result')}`) || '', method: new URLSearchParams(resultUrl.url).get('method')}, CallbackMsgType.SUCCESS)

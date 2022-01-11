@@ -1,5 +1,5 @@
 import React from 'react';
-import TorusSolanaSdk from 'torus-solana-react-sdk';
+import TorusSolanaSdk from '@toruslabs/torus-solana-react-sdk';
 import {View, Button, Linking} from 'react-native';
 
 const App = () => {
