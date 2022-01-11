@@ -1,5 +1,5 @@
 {
-  "name": "torus-solana-react-sdk",
+  "name": "@toruslabs/torus-solana-react-sdk",
   "version": "1.0.0",
   "description": "",
   "main": "lib/index.js",

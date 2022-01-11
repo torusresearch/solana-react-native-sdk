@@ -5,7 +5,7 @@ import {View, Button, Linking} from 'react-native';
 const App = () => {
   // Configure the SDK, get a instance of SDK back.
   const torusSdk = new TorusSolanaSdk({
-    base_url: 'http://192.168.1.17:8080',
+    base_url: 'http://localhost:8080',
     deeplink_schema: 'solanasdk',
   });
 
@@ -15,7 +15,7 @@ const App = () => {
   });
 
   return (
-    <View>
+    <View style={{paddingTop: 100}}>
       <Button
         onPress={() => {
           torusSdk.login();
