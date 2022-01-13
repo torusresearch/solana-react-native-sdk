@@ -2,7 +2,9 @@ import { Linking } from "react-native";
 import { ProviderConfig, TorusSolanaConfig } from "./interface";
 import { defaultConfig } from "./utils/constants";
 import { CallbackMsgType } from "./utils/enum";
-import { encode as btoa, decode as atob } from "base-64"; // TODO: are we using this library in other repos ??
+// atob and btoa are available in the context of the browser, 
+// and that's why it works there, not primarily in react native
+import { encode as btoa, decode as atob } from "base-64";
 import { objectToQueryParams } from "./utils/helper";
 // https://github.com/sideway/joi/issues/2141#issuecomment-558429490
 import 'text-encoding-polyfill'
@@ -137,7 +139,6 @@ export default class TorusSolanaSdk {
     let url = `${baseURL}?${objectToQueryParams(
       queryParams
     )}&resolveRoute=${resolvePath}${useParams ? "#params=" + encodedParams : ""}`;
-    console.log('open', url);
     Linking.openURL(url).catch((err: any) =>
       this._resultCallback("Error openeing URL", CallbackMsgType.ERROR)
     );
@@ -147,7 +148,6 @@ export default class TorusSolanaSdk {
     linkingObject: any,
     callback: (event: any, type?: CallbackMsgType) => void
   ) {
-    console.log(linkingObject, callback)
     this._resultCallback = callback;
     linkingObject.addEventListener("url", (resultUrl: any) => {
       callback(
