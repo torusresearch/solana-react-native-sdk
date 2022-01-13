@@ -1,11 +1,14 @@
 {
     "compilerOptions": {
       "target": "es5",
-      "module": "commonjs",
+      "module": "esnext",
       "declaration": true,
       "outDir": "./lib",
-      "strict": true
+      "strict": true,
+      "skipLibCheck": true,
     },
     "include": ["src"],
-    "exclude": ["node_modules", "**/__tests__/*"]
+    "exclude": ["node_modules"]
   }
+  // https://github.com/DefinitelyTyped/DefinitelyTyped/issues/15960
+  // https://github.com/DefinitelyTyped/DefinitelyTyped/issues/16825
