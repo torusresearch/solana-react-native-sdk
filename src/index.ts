@@ -9,7 +9,7 @@ import { objectToQueryParams } from "./utils/helper";
 // https://github.com/sideway/joi/issues/2141#issuecomment-558429490
 import 'text-encoding-polyfill'
 
-import { URLSearchParams } from "whatwg-url";
+import { URLSearchParams, URL } from "whatwg-url";
 if (typeof BigInt === "undefined") global.BigInt = require("big-integer");
 
 export default class TorusSolanaSdk {
@@ -140,7 +140,7 @@ export default class TorusSolanaSdk {
       queryParams
     )}&resolveRoute=${resolvePath}${useParams ? "#params=" + encodedParams : ""}`;
     Linking.openURL(url).catch((err: any) =>
-      this._resultCallback("Error openeing URL", CallbackMsgType.ERROR)
+      this._resultCallback("Error opening URL", CallbackMsgType.ERROR)
     );
   }
 
@@ -150,11 +150,12 @@ export default class TorusSolanaSdk {
   ) {
     this._resultCallback = callback;
     linkingObject.addEventListener("url", (resultUrl: any) => {
+      const url = new URL(resultUrl.url);
       callback(
         {
           result:
-            atob(`${new URLSearchParams(resultUrl.url).get("result")}`) || "",
-          method: new URLSearchParams(resultUrl.url).get("method"),
+            atob(`${new URLSearchParams(url.search).get("result")}`) || "",
+          method: new URLSearchParams(url.search).get("method"),
         },
         CallbackMsgType.SUCCESS
       );
