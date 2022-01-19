@@ -56,6 +56,10 @@ export default class TorusSolanaSdk {
     this.openUrl("sign_transaction", serializedTransaction);
   }
 
+  signAllTransactions(serializedTransactions: string[]) {
+    this.openUrl("sign_all_transactions", serializedTransactions);
+  }
+
   signMessage(message: Uint8Array) {
     this.openUrl("sign_message", message);
   }
@@ -109,6 +113,11 @@ export default class TorusSolanaSdk {
         };
         break;
       case "sign_transaction":
+        params = {
+          message: data,
+        };
+        break;
+      case "sign_all_transactions":
         params = {
           message: data,
         };

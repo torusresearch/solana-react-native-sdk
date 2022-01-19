@@ -3,6 +3,8 @@ import TorusSolanaSdk from '@toruslabs/torus-solana-react-sdk';
 import {View, Button, Linking, Text, ScrollView} from 'react-native';
 import Snackbar from 'react-native-snackbar';
 
+const dummySPLTransaction =
+  '010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000205a44b854a51e704d2af5ada4ef25408550364a1e27cb7574b376f57db1763953f28be84dab0b091f9453c53ede3fbd9d1b9df5540e16b364a59b9191a4d2775eb5fe1031e6d2276b9dc3cc172723bbd0001525cf1d988d965245c354986d1750fc6fa7af3bedbad3a3d65f36aabc97431b1bbe4c2d2f6e0e47ca60203452f5d6106ddf6e1d765a193d9cbe146ceeb79ac1cb485ed5f5b37913a8cf5857eff00a90cdbfc197c9fda126242fd784364d8d155c66479f7b2a5698ca1a9bab3eedd44010404010302000a0c010000000000000006';
 const dummySerializedTransaction =
   '010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000103a44b854a51e704d2af5ada4ef25408550364a1e27cb7574b376f57db1763953f1e140dde934169753442cad0586618f25f5a1eaf6349fe6b65becd77574d4aae000000000000000000000000000000000000000000000000000000000000000074539fd8a274c963db7a97c90d6ecf0dcd77cf4cc974d6061dd9122f0ec71f3c01020200010c02000000a086010000000000';
 const dummyUint8Message = new Uint8Array([
@@ -32,7 +34,7 @@ const App = () => {
 
   // Configure the SDK, get a instance of SDK back.
   const torusSdk = new TorusSolanaSdk({
-    base_url: 'http://192.168.1.17:8080',
+    base_url: 'http://192.168.1.3:8080',
     deeplink_schema: 'solanasdk',
   });
 
@@ -57,7 +59,7 @@ const App = () => {
   });
 
   return (
-    <View style={{paddingTop: 100}}>
+    <View style={{paddingTop: 25}}>
       <Button
         onPress={() => {
           torusSdk.login();
@@ -119,6 +121,17 @@ const App = () => {
       <Button
         onPress={() => {
           showSnackbar(
+            'We used a dummy data for demo purposes, transaction might fail. Change data if required and press OK to proceed',
+            () => {
+              torusSdk.sendTransaction(dummySPLTransaction);
+            },
+          );
+        }}
+        title="Send SPL Transaction"
+      />
+      <Button
+        onPress={() => {
+          showSnackbar(
             'We used a dummy data for demo purposes , transaction might fail. Change data if required and press OK to proceed',
             () => {
               torusSdk.signTransaction(dummySerializedTransaction);
@@ -126,6 +139,20 @@ const App = () => {
           );
         }}
         title="Sign Transaction"
+      />
+      <Button onPress={() => {
+          showSnackbar(
+            'We used a dummy data for demo purposes , transaction might fail. Change data if required and press OK to proceed',
+            () => {
+              torusSdk.signAllTransactions([
+                dummySerializedTransaction,
+                dummySerializedTransaction,
+                dummySerializedTransaction,
+              ]);
+            },
+          );
+        }}
+        title="Sign All Transactions"
       />
       <Button
         onPress={() => {
