@@ -76,12 +76,18 @@ export default class TorusSolanaSdk {
     this.openUrl("nft_list");
   }
 
+  sendSpl(transactionData: {
+    mint_add: string;
+    receiver_add: string;
+    amount: number;
+  }) {
+    this.openUrl("spl_transfer", transactionData);
+  }
 
   sendNft(transactionData: {
     mint_add: string;
     receiver_add: string;
-    sender_add: string;
-  }) {
+    }) {
     this.openUrl("nft_transfer", transactionData);
   }
 
@@ -126,6 +132,9 @@ export default class TorusSolanaSdk {
         params = {
           data,
         };
+        break;
+      case "spl_transfer":
+        params = { ...data };
         break;
       case "nft_transfer":
         params = { ...data };
