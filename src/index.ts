@@ -8,6 +8,7 @@ import { encode as btoa, decode as atob } from "base-64";
 import { objectToQueryParams } from "./utils/helper";
 // https://github.com/sideway/joi/issues/2141#issuecomment-558429490
 import 'text-encoding-polyfill'
+import InAppBrowser from "react-native-inappbrowser-reborn";
 
 import { URLSearchParams, URL } from "whatwg-url";
 if (typeof BigInt === "undefined") global.BigInt = require("big-integer");
@@ -157,9 +158,30 @@ export default class TorusSolanaSdk {
     let url = `${baseURL}?${objectToQueryParams(
       queryParams
     )}&resolveRoute=${resolvePath}${useParams ? "#params=" + encodedParams : ""}`;
-    Linking.openURL(url).catch((err: any) =>
-      this._resultCallback("Error opening URL", CallbackMsgType.ERROR)
-    );
+    try {
+       if (await InAppBrowser.isAvailable()) {
+         // open any existing sessions in background - https://github.com/proyecto26/react-native-inappbrowser/issues/254
+         await InAppBrowser.closeAuth();
+
+         await InAppBrowser.openAuth(url, resolvePath, {
+           // iOS Properties
+           ephemeralWebSession: true,
+           // Android Properties
+           showTitle: false,
+           enableUrlBarHiding: true,
+           enableDefaultShare: true
+         });
+          }
+          return;
+      } catch (e) {
+          try {
+              console.error("DOING FALLBACK", e);
+              await Linking.openURL(url).catch(e => this._resultCallback(`Error opening URL: ${JSON.stringify(e)}`, CallbackMsgType.ERROR))
+          } catch (e_linking) {
+              this._resultCallback(`Error opening URL: ${JSON.stringify(e_linking)}`, CallbackMsgType.ERROR)
+
+          }
+      }
   }
 
   getResults(
