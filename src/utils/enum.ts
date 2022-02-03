@@ -1,4 +1,5 @@
-export enum CallbackMsgType  { 
-    "SUCCESS" = 'success',
-    "ERROR" = "error"
+export enum CallbackMsgType  {
+    "SUCCESS" = "success",
+    "ERROR" = "error",
+    "CANCEL"= "cancel"
 }

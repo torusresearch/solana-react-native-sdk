@@ -2,7 +2,7 @@ import { Linking } from "react-native";
 import { ProviderConfig, TorusSolanaConfig } from "./interface";
 import { defaultConfig } from "./utils/constants";
 import { CallbackMsgType } from "./utils/enum";
-// atob and btoa are available in the context of the browser, 
+// atob and btoa are available in the context of the browser,
 // and that's why it works there, not primarily in react native
 import { encode as btoa, decode as atob } from "base-64";
 import { objectToQueryParams } from "./utils/helper";
@@ -97,6 +97,9 @@ export default class TorusSolanaSdk {
   }
 
   private async openUrl(method: string, data?: any) {
+    if(!this._resultCallback){
+      throw new Error('CALLBACK NOT REGISTERED');
+    }
     const baseURL = `${this.config.base_url}/redirectflow`;
     let params = {};
     switch (method) {
@@ -159,45 +162,65 @@ export default class TorusSolanaSdk {
       queryParams
     )}&resolveRoute=${resolvePath}${useParams ? "#params=" + encodedParams : ""}`;
     try {
-       if (await InAppBrowser.isAvailable()) {
-         // open any existing sessions in background - https://github.com/proyecto26/react-native-inappbrowser/issues/254
-         await InAppBrowser.closeAuth();
+      if (await InAppBrowser.isAvailable()) {
+        // close any existing sessions in background - https://github.com/proyecto26/react-native-inappbrowser/issues/254
+        await InAppBrowser.closeAuth();
+        // openAuth session, save response in 'respose'
 
-         await InAppBrowser.openAuth(url, resolvePath, {
-           // iOS Properties
-           ephemeralWebSession: true,
-           // Android Properties
-           showTitle: false,
-           enableUrlBarHiding: true,
-           enableDefaultShare: true
-         });
-          }
+        const response = await InAppBrowser.openAuth(url, resolvePath, {
+          ephemeralWebSession: false,
+          showTitle: false,
+          enableUrlBarHiding: true,
+          enableDefaultShare: false
+        });
+        // parse the response, send data back to app
+        if (response.type === 'success' && response.url) {
+          const url = new URL(response.url);
+          this._resultCallback(
+              {
+                result:
+                    atob(`${new URLSearchParams(url.search).get("result")}`) || "",
+                method: new URLSearchParams(url.search).get("method"),
+              },
+              CallbackMsgType.SUCCESS
+          );
           return;
-      } catch (e) {
-          try {
-              console.error("DOING FALLBACK", e);
-              await Linking.openURL(url).catch(e => this._resultCallback(`Error opening URL: ${JSON.stringify(e)}`, CallbackMsgType.ERROR))
-          } catch (e_linking) {
-              this._resultCallback(`Error opening URL: ${JSON.stringify(e_linking)}`, CallbackMsgType.ERROR)
-
-          }
+        } else if(response.type === 'cancel' || response.type === 'dismiss'){
+          this._resultCallback(
+              response, CallbackMsgType.CANCEL
+          );
+          return;
+        }
+        this._resultCallback(
+            undefined, CallbackMsgType.ERROR
+        );
       }
+      return;
+    } catch (e) {
+      try {
+        console.error("DOING FALLBACK", e);
+        // in app browser fails, try the default browser
+        await Linking.openURL(url).catch(e => this._resultCallback(`Error opening URL: ${JSON.stringify(e)}`, CallbackMsgType.ERROR))
+      } catch (e_linking) {
+        // if default browser fails too, return error.
+        this._resultCallback(`Error opening URL: ${JSON.stringify(e_linking)}`, CallbackMsgType.ERROR)
+      }
+    }
   }
 
-  getResults(
-    linkingObject: any,
-    callback: (event: any, type?: CallbackMsgType) => void
+  onResult(linkingObject:any,
+           callback: (event: any, type?: CallbackMsgType) => void
   ) {
     this._resultCallback = callback;
     linkingObject.addEventListener("url", (resultUrl: any) => {
       const url = new URL(resultUrl.url);
       callback(
-        {
-          result:
-            atob(`${new URLSearchParams(url.search).get("result")}`) || "",
-          method: new URLSearchParams(url.search).get("method"),
-        },
-        CallbackMsgType.SUCCESS
+          {
+            result:
+                atob(`${new URLSearchParams(url.search).get("result")}`) || "",
+            method: new URLSearchParams(url.search).get("method"),
+          },
+          CallbackMsgType.SUCCESS
       );
     });
   }

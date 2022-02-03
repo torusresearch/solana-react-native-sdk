@@ -1,6 +1,6 @@
 import React, {useState} from 'react';
 import TorusSolanaSdk from '@toruslabs/torus-solana-react-sdk';
-import {View, Button, Linking, Text, ScrollView} from 'react-native';
+import {View, Button, Text, ScrollView, Linking} from 'react-native';
 import Snackbar from 'react-native-snackbar';
 
 const dummySerializedTransaction =
@@ -36,7 +36,7 @@ const App = () => {
 
   // Configure the SDK, get a instance of SDK back.
   const torusSdk = new TorusSolanaSdk({
-    base_url: 'http://192.168.0.106:8080',
+    base_url: 'http://192.168.0.100:8080',
     deeplink_schema: 'solanasdk',
   });
 
@@ -55,9 +55,10 @@ const App = () => {
   }
 
   // All results are dropped in this callback
-  torusSdk.getResults(Linking, (val: any) => {
-    console.log('ALL RESULTS HERE', val);
-    setResult(JSON.stringify(val || {}));
+  // @ts-ignore
+  torusSdk.onResult(Linking, (val: any, type?: any) => {
+    console.log('ALL RESULTS HERE', val, type);
+    setResult(JSON.stringify({...val, type} || {}));
   });
 
   return (
@@ -142,7 +143,8 @@ const App = () => {
         }}
         title="Sign Transaction"
       />
-      <Button onPress={() => {
+      <Button
+        onPress={() => {
           showSnackbar(
             'We used a dummy data for demo purposes , transaction might fail. Change data if required and press OK to proceed',
             () => {
