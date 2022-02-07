@@ -7,7 +7,7 @@ import { CallbackMsgType } from "./utils/enum";
 import { encode as btoa, decode as atob } from "base-64";
 import { objectToQueryParams } from "./utils/helper";
 // https://github.com/sideway/joi/issues/2141#issuecomment-558429490
-import 'text-encoding-polyfill'
+import "text-encoding-polyfill";
 import InAppBrowser from "react-native-inappbrowser-reborn";
 
 import { URLSearchParams, URL } from "whatwg-url";
@@ -85,10 +85,7 @@ export default class TorusSolanaSdk {
     this.openUrl("spl_transfer", transactionData);
   }
 
-  sendNft(transactionData: {
-    mint_add: string;
-    receiver_add: string;
-    }) {
+  sendNft(transactionData: { mint_add: string; receiver_add: string }) {
     this.openUrl("nft_transfer", transactionData);
   }
 
@@ -160,7 +157,9 @@ export default class TorusSolanaSdk {
     const resolvePath = `${this.config.deeplink_schema}://redirect-handle`;
     let url = `${baseURL}?${objectToQueryParams(
       queryParams
-    )}&resolveRoute=${resolvePath}${useParams ? "#params=" + encodedParams : ""}`;
+    )}&resolveRoute=${resolvePath}${
+      useParams ? "#params=" + encodedParams : ""
+    }`;
     try {
       if (await InAppBrowser.isAvailable()) {
         // close any existing sessions in background - https://github.com/proyecto26/react-native-inappbrowser/issues/254
@@ -215,12 +214,13 @@ export default class TorusSolanaSdk {
     linkingObject.addEventListener("url", (resultUrl: any) => {
       const url = new URL(resultUrl.url);
       callback(
-          {
-            result:
-                atob(`${new URLSearchParams(url.search).get("result")}`) || "",
-            method: new URLSearchParams(url.search).get("method"),
-          },
-          CallbackMsgType.SUCCESS
+        {
+          result: JSON.parse(
+            atob(`${new URLSearchParams(url.search).get("result")}`) || "{}"
+          ),
+          method: new URLSearchParams(url.search).get("method"),
+        },
+        CallbackMsgType.SUCCESS
       );
     });
   }
