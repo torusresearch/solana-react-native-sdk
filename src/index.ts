@@ -94,7 +94,7 @@ export default class TorusSolanaSdk {
   }
 
   private async openUrl(method: string, data?: any) {
-    if(!this._resultCallback){
+    if (!this._resultCallback) {
       throw new Error('CALLBACK NOT REGISTERED');
     }
     const baseURL = `${this.config.base_url}/redirectflow`;
@@ -115,15 +115,7 @@ export default class TorusSolanaSdk {
         };
         break;
       case "send_transaction":
-        params = {
-          message: data,
-        };
-        break;
       case "sign_transaction":
-        params = {
-          message: data,
-        };
-        break;
       case "sign_all_transactions":
         params = {
           message: data,
@@ -157,9 +149,8 @@ export default class TorusSolanaSdk {
     const resolvePath = `${this.config.deeplink_schema}://redirect-handle`;
     let url = `${baseURL}?${objectToQueryParams(
       queryParams
-    )}&resolveRoute=${resolvePath}${
-      useParams ? "#params=" + encodedParams : ""
-    }`;
+    )}&resolveRoute=${resolvePath}${useParams ? "#params=" + encodedParams : ""
+      }`;
     try {
       if (await InAppBrowser.isAvailable()) {
         // close any existing sessions in background - https://github.com/proyecto26/react-native-inappbrowser/issues/254
@@ -176,30 +167,30 @@ export default class TorusSolanaSdk {
         if (response.type === 'success' && response.url) {
           const url = new URL(response.url);
           this._resultCallback(
-              {
-                result:
-                    atob(`${new URLSearchParams(url.search).get("result")}`) || "",
-                method: new URLSearchParams(url.search).get("method"),
-              },
-              CallbackMsgType.SUCCESS
+            {
+              result:
+                atob(`${new URLSearchParams(url.search).get("result")}`) || "",
+              method: new URLSearchParams(url.search).get("method"),
+            },
+            CallbackMsgType.SUCCESS
           );
           return;
-        } else if(response.type === 'cancel' || response.type === 'dismiss'){
+        } else if (response.type === 'cancel' || response.type === 'dismiss') {
           this._resultCallback(
-              response, CallbackMsgType.CANCEL
+            response, CallbackMsgType.CANCEL
           );
           return;
         }
         this._resultCallback(
-            undefined, CallbackMsgType.ERROR
+          undefined, CallbackMsgType.ERROR
         );
       }
       return;
     } catch (e) {
       try {
-        console.error("DOING FALLBACK", e);
+        // console.error("DOING FALLBACK", e);
         // in app browser fails, try the default browser
-        await Linking.openURL(url).catch(e => this._resultCallback(`Error opening URL: ${JSON.stringify(e)}`, CallbackMsgType.ERROR))
+        // await Linking.openURL(url).catch(e => this._resultCallback(`Error opening URL: ${JSON.stringify(e)}`, CallbackMsgType.ERROR))
       } catch (e_linking) {
         // if default browser fails too, return error.
         this._resultCallback(`Error opening URL: ${JSON.stringify(e_linking)}`, CallbackMsgType.ERROR)
@@ -207,8 +198,8 @@ export default class TorusSolanaSdk {
     }
   }
 
-  onResult(linkingObject:any,
-           callback: (event: any, type?: CallbackMsgType) => void
+  onResult(linkingObject: any,
+    callback: (event: any, type?: CallbackMsgType) => void
   ) {
     this._resultCallback = callback;
     linkingObject.addEventListener("url", (resultUrl: any) => {

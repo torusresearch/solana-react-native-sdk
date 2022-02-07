@@ -1,2 +1,2 @@
 import { TorusSolanaConfig} from "../interface"
-export const defaultConfig: TorusSolanaConfig = { base_url: "http://192.168.1.3:8080", deeplink_schema:'torus' }
+export const defaultConfig: TorusSolanaConfig = { base_url: "http://localhost:8080", deeplink_schema:'torus' }

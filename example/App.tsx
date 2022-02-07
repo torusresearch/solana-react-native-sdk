@@ -14,6 +14,7 @@ import {
 
 import {toUTF8Array} from './utils';
 import {LogBox} from 'react-native';
+import {debug} from 'util';
 
 LogBox.ignoreLogs(['EventEmitter.removeListener']);
 
@@ -66,7 +67,7 @@ const generateTransaction = async (
 
 // Configure the SDK, get a instance of SDK back.
 const torusSdk = new TorusSolanaSdk({
-  base_url: 'http://192.168.1.3:8080',
+  base_url: 'http://localhost:8080',
   deeplink_schema: 'solanasdk',
 });
 
@@ -92,6 +93,8 @@ const App = () => {
   );
 
   const handleResult = useCallback(val => {
+    console.log(val);
+    debugger;
     if (val.result.success !== false) {
       switch (val.method) {
         case 'get_accounts':
@@ -163,7 +166,7 @@ const App = () => {
         borderWidth: 1,
         borderColor: 'red',
       }}>
-      <View style={{marginBottom: 20}}>
+      <View style={{marginBottom: 20, marginTop: 20}}>
         <Button
           onPress={() => {
             torusSdk.login();
