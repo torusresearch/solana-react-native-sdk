@@ -1,25 +1,13 @@
 import 'react-native-url-polyfill/auto';
 
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import TorusSolanaSdk from '@toruslabs/torus-solana-react-sdk';
+import TorusSolanaRNSDK from '@toruslabs/torus-solana-react-sdk';
 import {View, Button, Text, ScrollView, Linking} from 'react-native';
-import {
-  Connection,
-  SystemProgram,
-  PublicKey,
-  Transaction,
-  clusterApiUrl,
-  Cluster,
-} from '@solana/web3.js';
 
-import {toUTF8Array} from './utils';
+import {toUTF8Array, generateTransaction, ChainID, networkMap} from './utils';
 import {LogBox} from 'react-native';
 
 LogBox.ignoreLogs(['EventEmitter.removeListener']);
-
-type ChainID = '0x1' | '0x2' | '0x3';
-
-const dummyUint8Message = toUTF8Array('Example Message');
 
 const dummyProviderState = {
   blockExplorerUrl: 'https://explorer.solana.com',
@@ -31,41 +19,8 @@ const dummyProviderState = {
   tickerName: 'Solana Token',
 };
 
-const networkMap = {
-  '0x1': 'mainnet-beta',
-  '0x2': 'testnet',
-  '0x3': 'devnet',
-};
-
-const generateTransaction = async (
-  chainId: ChainID,
-  sender_add: string,
-  receiver_add: string,
-  amount = 0.0001,
-  feePayer = sender_add,
-) => {
-  const rpcTarget = clusterApiUrl(networkMap[chainId] as Cluster);
-
-  const conn = new Connection(rpcTarget);
-
-  const blockhash = (await conn.getRecentBlockhash('finalized')).blockhash;
-  console.log('current blockhash = ', blockhash);
-  const TransactionInstructions = SystemProgram.transfer({
-    fromPubkey: new PublicKey(sender_add),
-    toPubkey: new PublicKey(receiver_add),
-    lamports: amount * 1000000000,
-  });
-  const transaction = new Transaction({
-    recentBlockhash: blockhash,
-    feePayer: new PublicKey(feePayer),
-  }).add(TransactionInstructions);
-  return transaction
-    .serialize({requireAllSignatures: false, verifySignatures: false})
-    .toString('hex');
-};
-
 // Configure the SDK, get a instance of SDK back.
-const torusSdk = new TorusSolanaSdk({
+const torusSdk = new TorusSolanaRNSDK({
   base_url: 'http://localhost:8080',
   deeplink_schema: 'solanasdk',
 });
@@ -202,12 +157,6 @@ const App = () => {
         />
         <Button
           onPress={() => {
-            torusSdk.getGaslessPublicKey();
-          }}
-          title="Get Gasless PubKey"
-        />
-        <Button
-          onPress={() => {
             torusSdk.listNft();
           }}
           title="List Nft"
@@ -267,7 +216,7 @@ const App = () => {
 
       <Button
         onPress={() => {
-          torusSdk.signMessage(dummyUint8Message);
+          torusSdk.signMessage(toUTF8Array('Example Message')); // TODO: why can't this be string ??
         }}
         title="SIGN MESSAGE"
       />
