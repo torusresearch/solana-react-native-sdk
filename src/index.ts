@@ -1,5 +1,5 @@
 import { Linking } from "react-native";
-import { ProviderConfig, TorusSolanaConfig } from "./interface";
+import { ProviderConfig, SDKConfig } from "./interface";
 import { defaultConfig } from "./utils/constants";
 import { CallbackMsgType } from "./utils/enum";
 // atob and btoa are available in the context of the browser,
@@ -13,10 +13,10 @@ import InAppBrowser from "react-native-inappbrowser-reborn";
 import { URLSearchParams, URL } from "whatwg-url";
 if (typeof BigInt === "undefined") global.BigInt = require("big-integer");
 
-export default class TorusSolanaSdk {
-  private config: TorusSolanaConfig = defaultConfig;
+export default class TorusSolanaRNSDK {
+  private config: SDKConfig = defaultConfig;
 
-  constructor(config?: TorusSolanaConfig) {
+  constructor(config?: SDKConfig) {
     if (config) {
       this.config = config;
     }
@@ -61,6 +61,7 @@ export default class TorusSolanaSdk {
     this.openUrl("sign_all_transactions", serializedTransactions);
   }
 
+  // TODO: why??
   signMessage(message: Uint8Array) {
     this.openUrl("sign_message", message);
   }
@@ -69,10 +70,8 @@ export default class TorusSolanaSdk {
     this.openUrl("send_transaction", serializedTransaction);
   }
 
-  getGaslessPublicKey() {
-    this.openUrl("get_gasless_public_key");
-  }
-
+  // Get the list of all the NFTs in the wallet. There's a limit to browser redirect URL. 
+  // we should only send the minimum required info back like account addresses and image URLs.
   listNft() {
     this.openUrl("nft_list");
   }
@@ -108,9 +107,7 @@ export default class TorusSolanaSdk {
         break;
       case "topup":
         params = {
-          params: {
-            selectedAddress: data.selectedAddress,
-          },
+          selectedAddress: data.selectedAddress,
           provider: data.provider,
         };
         break;
@@ -121,24 +118,25 @@ export default class TorusSolanaSdk {
           message: data,
         };
         break;
-      case "sign_message":
+      case "sign_message": // why is this API different?? 
         params = {
           data,
         };
         break;
       case "spl_transfer":
-        params = { ...data };
-        break;
       case "nft_transfer":
         params = { ...data };
         break;
       default:
     }
+
     let queryParams: { [key: string]: string } = {};
     queryParams["method"] = method;
 
     let encodedParams = btoa(JSON.stringify(params));
     let useParams = true;
+
+    // what happens if i don't check for empty object ?? 
     if (
       (typeof params === "object" && Object.keys(params).length === 0) ||
       (Array.isArray(params) && params.length === 0)

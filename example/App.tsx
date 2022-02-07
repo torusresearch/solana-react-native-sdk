@@ -14,7 +14,6 @@ import {
 
 import {toUTF8Array} from './utils';
 import {LogBox} from 'react-native';
-import {debug} from 'util';
 
 LogBox.ignoreLogs(['EventEmitter.removeListener']);
 
@@ -93,23 +92,22 @@ const App = () => {
   );
 
   const handleResult = useCallback(val => {
-    console.log(val);
-    debugger;
-    if (val.result.success !== false) {
-      switch (val.method) {
-        case 'get_accounts':
-          setPubkey(val.result[0]);
-          break;
-        case 'wallet_get_provider_state':
-          setPubkey(val.result.accounts[0]);
-          setChainId(val.result.chainId);
-          break;
-        case 'nft_list':
-          setNFTS(val.result);
-          break;
-        default:
-          break;
-      }
+    console.log(val.method);
+    switch (val.method) {
+      case 'get_accounts':
+        setPubkey(val.result[0]);
+        break;
+      case 'wallet_get_provider_state':
+        console.log(val.result.accounts[0]);
+        setPubkey(val.result.accounts[0]);
+        setChainId(val.result.chainId);
+        break;
+      case 'nft_list':
+        setNFTS(val.result);
+        break;
+      default:
+        console.log('default called');
+        break;
     }
     setResult(JSON.stringify(val || {}));
   }, []);

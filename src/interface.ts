@@ -1,4 +1,4 @@
-export interface TorusSolanaConfig {
+export interface SDKConfig {
     base_url: string
     deeplink_schema: string
 }
