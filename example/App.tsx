@@ -1,198 +1,255 @@
-import React, {useState} from 'react';
-import TorusSolanaSdk from '@toruslabs/torus-solana-react-sdk';
-import {View, Button, Text, ScrollView, Linking} from 'react-native';
-import Snackbar from 'react-native-snackbar';
+import 'react-native-url-polyfill/auto';
 
-const dummySerializedTransaction =
-  '010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000103a44b854a51e704d2af5ada4ef25408550364a1e27cb7574b376f57db1763953f1e140dde934169753442cad0586618f25f5a1eaf6349fe6b65becd77574d4aae000000000000000000000000000000000000000000000000000000000000000074539fd8a274c963db7a97c90d6ecf0dcd77cf4cc974d6061dd9122f0ec71f3c01020200010c02000000a086010000000000';
-const dummyUint8Message = new Uint8Array([
-  69, 120, 97, 109, 112, 108, 101, 32, 77, 101, 115, 115, 97, 103, 101,
-]);
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import TorusSolanaRNSDK from '@toruslabs/torus-solana-react-sdk';
+import {View, Button, Text, ScrollView, Linking} from 'react-native';
+
+import {toUTF8Array, generateTransaction, ChainID, networkMap} from './utils';
+import {LogBox} from 'react-native';
+import {SdkRpc} from '@toruslabs/torus-solana-react-sdk/src/interface';
+
+LogBox.ignoreLogs(['EventEmitter.removeListener']);
+
 const dummyProviderState = {
   blockExplorerUrl: 'https://explorer.solana.com',
-  chainId: '0x1',
-  displayName: 'Solana Mainnet',
+  chainId: '0x2',
+  displayName: 'Solana Testnet',
   logo: 'solana.svg',
-  rpcTarget: 'https://api.mainnet-beta.solana.com',
+  rpcTarget: 'https://api.testnet.solana.com',
   ticker: 'SOL',
   tickerName: 'Solana Token',
 };
-const dummyTopupPayload = {
-  selectedAddress: 'C4Letg829ytf5PqyEDSdBUWs4T1GT7whYGrZsJreftgW',
-  provider: 'rampnetwork',
-};
-const dummySplTransfer = {
-  mint_add: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', //USDC
-  receiver_add: 'C4Letg829ytf5PqyEDSdBUWs4T1GT7whYGrZsJreftgW',
-  amount: 0.01,
-};
-const dummyNftTransfer = {
-  mint_add: 'BAYYCCY31SRrexQKwGqDRonVzMiB2Y2HagNZQv6cNWk7',
-  receiver_add: 'C4Letg829ytf5PqyEDSdBUWs4T1GT7whYGrZsJreftgW',
-};
+
+// Configure the SDK, get a instance of SDK back.
+const torusSdk = new TorusSolanaRNSDK({
+  base_url: 'http://192.168.0.111:8080',
+  deeplink_schema: 'solanasdk',
+});
 
 const App = () => {
   const [result, setResult] = useState<string>('~So Empty~');
+  // ideally store the pubkey in persistent storage to access on new app launches.
+  const [pubkey, setPubkey] = useState<string>('');
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [chainId, setChainId] = useState<ChainID>('0x1');
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [nfts, setNFTS] = useState<
+    {name: string; uri: string; mint: string; balance: any}[]
+  >([]);
+  const [dummyTX, setDummyTX] = useState<string>('');
 
-  // Configure the SDK, get a instance of SDK back.
-  const torusSdk = new TorusSolanaSdk({
-    base_url: 'http://localhost:8080',
-    deeplink_schema: 'solanasdk',
-  });
+  useEffect(() => {
+    generateTransaction(chainId, pubkey, pubkey, 0.0001).then(tx =>
+      setDummyTX(tx),
+    );
+  }, [pubkey, chainId]);
 
-  function showSnackbar(text: string, callback: () => void) {
-    Snackbar.show({
-      text: text,
-      duration: Snackbar.LENGTH_INDEFINITE,
-      numberOfLines: 4,
-      backgroundColor: '#910000',
-      action: {
-        text: 'OK',
-        textColor: 'white',
-        onPress: callback,
-      },
+  const dummyTopupPayload = useMemo(
+    () => ({
+      selectedAddress: pubkey,
+      provider: 'rampnetwork',
+    }),
+    [pubkey],
+  );
+
+  const handleResult = useCallback((val: SdkRpc) => {
+    console.log(val.method);
+    const res = val.result ? JSON.parse(val.result || '') : val.result;
+    switch (val.method) {
+      case 'login':
+        setPubkey(res.selectedAddress);
+        break;
+      case 'logout':
+        setPubkey('');
+        setNFTS([]);
+        break;
+
+      case 'get_accounts':
+        setPubkey(res);
+        break;
+      case 'wallet_get_provider_state':
+        setPubkey(res.accounts[0]);
+        setChainId(res.chainId);
+        break;
+      case 'nft_list':
+        console.log('RES', res);
+        setNFTS(res);
+        break;
+      default:
+        console.log('default called');
+        break;
+    }
+    setResult(JSON.stringify(val || {}));
+  }, []);
+
+  const sendTransaction = useCallback(
+    async (
+      chain: ChainID,
+      sender: string,
+      receiver: string,
+      amount: number,
+      feePayer = sender,
+    ) => {
+      const transaction = await generateTransaction(
+        chain,
+        sender,
+        receiver,
+        amount,
+        feePayer,
+      );
+      torusSdk.sendTransaction(transaction);
+    },
+    [],
+  );
+
+  const transferNFT = useCallback((receiver_add, mint_add) => {
+    torusSdk.sendNft({
+      mint_add,
+      receiver_add,
     });
-  }
+  }, []);
+
+  const transferSPL = useCallback(
+    (amount: number, receiver_add: string, mint_add: string) => {
+      torusSdk.sendSpl({
+        amount,
+        mint_add,
+        receiver_add,
+      });
+    },
+    [],
+  );
 
   // All results are dropped in this callback
-  // @ts-ignore
-  torusSdk.onResult(Linking, (val: any, type?: any) => {
-    console.log('ALL RESULTS HERE', val, type);
-    setResult(JSON.stringify({...val, type} || {}));
+  torusSdk.onResult(Linking, (val: SdkRpc) => {
+    console.log('ALL RESULTS HERE', val);
+    handleResult(val);
   });
 
   return (
-    <View style={{paddingTop: 25}}>
+    <ScrollView
+      contentContainerStyle={{
+        paddingVertical: 25,
+        flexGrow: 1,
+        borderWidth: 1,
+        borderColor: 'red',
+      }}>
+      <View style={{marginBottom: 20, marginTop: 20}}>
+        <Button
+          onPress={() => {
+            torusSdk.login();
+          }}
+          title="LOGIN"
+        />
+        <Button
+          onPress={() => {
+            torusSdk.logout();
+          }}
+          title="LOGOUT"
+          disabled={!pubkey}
+        />
+      </View>
+      <View style={{marginBottom: 20}}>
+        <Button
+          onPress={() => {
+            torusSdk.walletGetProviderState();
+          }}
+          title="Get Wallet Provider State"
+          color={pubkey && chainId ? '' : 'green'}
+          disabled={!pubkey}
+        />
+        <Button
+          onPress={() => {
+            torusSdk.getProviderState();
+          }}
+          title="Get Provider State"
+          disabled={!pubkey}
+        />
+      </View>
+      <View style={{marginBottom: 20}}>
+        <Button
+          onPress={() => {
+            torusSdk.getUserInfo();
+          }}
+          title="User Info"
+          disabled={!pubkey}
+        />
+        <Button
+          onPress={() => {
+            torusSdk.listNft();
+          }}
+          title="List Nft"
+          disabled={!pubkey}
+        />
+        <Button
+          onPress={() => {
+            torusSdk.setProvider(dummyProviderState);
+          }}
+          title="Set Provider"
+          disabled={!pubkey}
+        />
+        <Button
+          onPress={() => {
+            torusSdk.topup(dummyTopupPayload);
+          }}
+          title="Topup"
+          disabled={!pubkey}
+        />
+      </View>
       <Button
         onPress={() => {
-          torusSdk.login();
-        }}
-        title="LOGIN"
-      />
-      <Button
-        onPress={() => {
-          torusSdk.logout();
-        }}
-        title="LOGOUT"
-      />
-      <Button
-        onPress={() => {
-          torusSdk.getUserInfo();
-        }}
-        title="User Info"
-      />
-      <Button
-        onPress={() => {
-          torusSdk.setProvider(dummyProviderState);
-        }}
-        title="Set Provider"
-      />
-      <Button
-        onPress={() => {
-          torusSdk.getProviderState();
-        }}
-        title="Get Provider State"
-      />
-      <Button
-        onPress={() => {
-          torusSdk.walletGetProviderState();
-        }}
-        title="Get Wallet Provider State"
-      />
-      <Button
-        onPress={() => {
-          showSnackbar(
-            'We used a dummy data for demo purposes, transaction might fail. Change data if required and press OK to proceed',
-            () => {
-              torusSdk.topup(dummyTopupPayload);
-            },
-          );
-        }}
-        title="Topup"
-      />
-      <Button
-        onPress={() => {
-          showSnackbar(
-            'We used a dummy data for demo purposes, transaction might fail. Change data if required and press OK to proceed',
-            () => {
-              torusSdk.sendTransaction(dummySerializedTransaction);
-            },
-          );
+          sendTransaction(chainId, pubkey, pubkey, 0.0001);
         }}
         title="Send Transaction"
+        disabled={!(pubkey && chainId)}
       />
       <Button
         onPress={() => {
-          showSnackbar(
-            'We used a dummy data for demo purposes, transaction might fail. Change data if required and press OK to proceed',
-            () => {
-              torusSdk.sendSpl(dummySplTransfer);
-            },
+          transferSPL(
+            0.001,
+            pubkey,
+            'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', //USDC
           );
         }}
         title="Send SPL Transaction"
+        disabled={!pubkey}
       />
       <Button
         onPress={() => {
-          showSnackbar(
-            'We used a dummy data for demo purposes , transaction might fail. Change data if required and press OK to proceed',
-            () => {
-              torusSdk.signTransaction(dummySerializedTransaction);
-            },
-          );
+          torusSdk.signTransaction(dummyTX);
         }}
         title="Sign Transaction"
+        disabled={!pubkey}
       />
       <Button
         onPress={() => {
-          showSnackbar(
-            'We used a dummy data for demo purposes , transaction might fail. Change data if required and press OK to proceed',
-            () => {
-              torusSdk.signAllTransactions([
-                dummySerializedTransaction,
-                dummySerializedTransaction,
-                dummySerializedTransaction,
-              ]);
-            },
-          );
+          torusSdk.signAllTransactions([dummyTX, dummyTX, dummyTX]);
         }}
         title="Sign All Transactions"
+        disabled={!pubkey}
       />
       <Button
         onPress={() => {
-          torusSdk.getGaslessPublicKey();
-        }}
-        title="Get Gasless PubKey"
-      />
-      <Button
-        onPress={() => {
-          torusSdk.listNft();
-        }}
-        title="List Nft"
-      />
-      <Button
-        onPress={() => {
-          showSnackbar(
-            'Change data in SDK as per *list nft* response, transfer might fail. Press OK to proceed',
-            () => {
-              torusSdk.sendNft(dummyNftTransfer);
-            },
-          );
+          transferNFT(pubkey, nfts[0].mint);
         }}
         title="Send Nft"
+        disabled={!pubkey || !nfts.length}
       />
 
       <Button
         onPress={() => {
-          torusSdk.signMessage(dummyUint8Message);
+          torusSdk.signMessage(toUTF8Array('Example Message')); // TODO: why can't this be string ??
         }}
-        title="SIGN MESSAGE"
+        title="Sign Message"
+        disabled={!pubkey}
       />
-      <ScrollView style={{maxHeight: 200, marginTop: 50}}>
-        <Text>RESULTS: </Text>
+      <View style={{marginTop: 50, flex: 1}}>
+        <Text>Network: {networkMap[chainId]}</Text>
+        <Text>Pubkey: {pubkey || 'NA'}</Text>
+        <Text>RESULTS:</Text>
         <Text style={{marginTop: 10}}>{result}</Text>
-      </ScrollView>
-    </View>
+      </View>
+    </ScrollView>
   );
 };
 
