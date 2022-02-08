@@ -278,7 +278,7 @@ PODS:
     - React-jsi (= 0.66.4)
     - React-logger (= 0.66.4)
     - React-perflogger (= 0.66.4)
-  - RNInAppBrowser (3.6.3):
+  - RNInAppBrowser (3.6.0):
     - React-Core
   - RNOS (1.2.6):
     - React
@@ -439,7 +439,7 @@ SPEC CHECKSUMS:
   React-RCTVibration: e3ffca672dd3772536cb844274094b0e2c31b187
   React-runtimeexecutor: dec32ee6f2e2a26e13e58152271535fadff5455a
   ReactCommon: 57b69f6383eafcbd7da625bfa6003810332313c4
-  RNInAppBrowser: 3ff3a3b8f458aaf25aaee879d057352862edf357
+  RNInAppBrowser: 6fb432b6d72a098682fe55a47c9df9489eca3114
   RNOS: 6f2f9a70895bbbfbdad7196abd952e7b01d45027
   RNSnackbar: be3333a21a453ccc272f41a8add5a71f7d44dfcd
   TcpSockets: 14306fb79f9750ea7d2ddd02d8bed182abb01797

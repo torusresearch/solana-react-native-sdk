@@ -6,6 +6,7 @@ import {View, Button, Text, ScrollView, Linking} from 'react-native';
 
 import {toUTF8Array, generateTransaction, ChainID, networkMap} from './utils';
 import {LogBox} from 'react-native';
+import {SdkRpc} from '@toruslabs/torus-solana-react-sdk/src/interface';
 
 LogBox.ignoreLogs(['EventEmitter.removeListener']);
 
@@ -21,15 +22,20 @@ const dummyProviderState = {
 
 // Configure the SDK, get a instance of SDK back.
 const torusSdk = new TorusSolanaRNSDK({
-  base_url: 'http://localhost:8080',
+  base_url: 'http://192.168.0.111:8080',
   deeplink_schema: 'solanasdk',
 });
 
 const App = () => {
   const [result, setResult] = useState<string>('~So Empty~');
+  // ideally store the pubkey in persistent storage to access on new app launches.
   const [pubkey, setPubkey] = useState<string>('');
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [chainId, setChainId] = useState<ChainID>('0x1');
-  const [nfts, setNFTS] = useState([]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [nfts, setNFTS] = useState<
+    {name: string; uri: string; mint: string; balance: any}[]
+  >([]);
   const [dummyTX, setDummyTX] = useState<string>('');
 
   useEffect(() => {
@@ -46,19 +52,28 @@ const App = () => {
     [pubkey],
   );
 
-  const handleResult = useCallback(val => {
+  const handleResult = useCallback((val: SdkRpc) => {
     console.log(val.method);
+    const res = val.result ? JSON.parse(val.result || '') : val.result;
     switch (val.method) {
+      case 'login':
+        setPubkey(res.selectedAddress);
+        break;
+      case 'logout':
+        setPubkey('');
+        setNFTS([]);
+        break;
+
       case 'get_accounts':
-        setPubkey(val.result[0]);
+        setPubkey(res);
         break;
       case 'wallet_get_provider_state':
-        console.log(val.result.accounts[0]);
-        setPubkey(val.result.accounts[0]);
-        setChainId(val.result.chainId);
+        setPubkey(res.accounts[0]);
+        setChainId(res.chainId);
         break;
       case 'nft_list':
-        setNFTS(val.result);
+        console.log('RES', res);
+        setNFTS(res);
         break;
       default:
         console.log('default called');
@@ -106,7 +121,7 @@ const App = () => {
   );
 
   // All results are dropped in this callback
-  torusSdk.onResult(Linking, (val: any) => {
+  torusSdk.onResult(Linking, (val: SdkRpc) => {
     console.log('ALL RESULTS HERE', val);
     handleResult(val);
   });
@@ -131,6 +146,7 @@ const App = () => {
             torusSdk.logout();
           }}
           title="LOGOUT"
+          disabled={!pubkey}
         />
       </View>
       <View style={{marginBottom: 20}}>
@@ -140,12 +156,14 @@ const App = () => {
           }}
           title="Get Wallet Provider State"
           color={pubkey && chainId ? '' : 'green'}
+          disabled={!pubkey}
         />
         <Button
           onPress={() => {
             torusSdk.getProviderState();
           }}
           title="Get Provider State"
+          disabled={!pubkey}
         />
       </View>
       <View style={{marginBottom: 20}}>
@@ -154,24 +172,28 @@ const App = () => {
             torusSdk.getUserInfo();
           }}
           title="User Info"
+          disabled={!pubkey}
         />
         <Button
           onPress={() => {
             torusSdk.listNft();
           }}
           title="List Nft"
+          disabled={!pubkey}
         />
         <Button
           onPress={() => {
             torusSdk.setProvider(dummyProviderState);
           }}
           title="Set Provider"
+          disabled={!pubkey}
         />
         <Button
           onPress={() => {
             torusSdk.topup(dummyTopupPayload);
           }}
           title="Topup"
+          disabled={!pubkey}
         />
       </View>
       <Button
@@ -208,7 +230,7 @@ const App = () => {
       />
       <Button
         onPress={() => {
-          transferNFT(pubkey, nfts[0]);
+          transferNFT(pubkey, nfts[0].mint);
         }}
         title="Send Nft"
         disabled={!pubkey || !nfts.length}
@@ -218,7 +240,8 @@ const App = () => {
         onPress={() => {
           torusSdk.signMessage(toUTF8Array('Example Message')); // TODO: why can't this be string ??
         }}
-        title="SIGN MESSAGE"
+        title="Sign Message"
+        disabled={!pubkey}
       />
       <View style={{marginTop: 50, flex: 1}}>
         <Text>Network: {networkMap[chainId]}</Text>

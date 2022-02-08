@@ -1,16 +1,16 @@
-import { Linking } from "react-native";
-import { ProviderConfig, SDKConfig } from "./interface";
-import { defaultConfig } from "./utils/constants";
-import { CallbackMsgType } from "./utils/enum";
+import {ProviderConfig, SDKConfig, SdkRpc} from "./interface";
+import {defaultConfig} from "./utils/constants";
+import {CallbackMsgType} from "./utils/enum";
 // atob and btoa are available in the context of the browser,
 // and that's why it works there, not primarily in react native
-import { encode as btoa, decode as atob } from "base-64";
-import { objectToQueryParams } from "./utils/helper";
+import {decode as atob, encode as btoa} from "base-64";
+import {objectToQueryParams, rpcResponse} from "./utils/helper";
 // https://github.com/sideway/joi/issues/2141#issuecomment-558429490
 import "text-encoding-polyfill";
 import InAppBrowser from "react-native-inappbrowser-reborn";
 
-import { URLSearchParams, URL } from "whatwg-url";
+import {URL, URLSearchParams} from "whatwg-url";
+
 if (typeof BigInt === "undefined") global.BigInt = require("big-integer");
 
 export default class TorusSolanaRNSDK {
@@ -21,7 +21,7 @@ export default class TorusSolanaRNSDK {
       this.config = config;
     }
   }
-  private _resultCallback = (event: any, type?: CallbackMsgType) => {
+  private _resultCallback = (response: SdkRpc) => {
     console.error("CALLBACK NOT REGISTERED");
   };
 
@@ -70,7 +70,7 @@ export default class TorusSolanaRNSDK {
     this.openUrl("send_transaction", serializedTransaction);
   }
 
-  // Get the list of all the NFTs in the wallet. There's a limit to browser redirect URL. 
+  // Get the list of all the NFTs in the wallet. There's a limit to browser redirect URL.
   // we should only send the minimum required info back like account addresses and image URLs.
   listNft() {
     this.openUrl("nft_list");
@@ -114,13 +114,9 @@ export default class TorusSolanaRNSDK {
       case "send_transaction":
       case "sign_transaction":
       case "sign_all_transactions":
+      case "sign_message":
         params = {
           message: data,
-        };
-        break;
-      case "sign_message": // why is this API different?? 
-        params = {
-          data,
         };
         break;
       case "spl_transfer":
@@ -134,82 +130,53 @@ export default class TorusSolanaRNSDK {
     queryParams["method"] = method;
 
     let encodedParams = btoa(JSON.stringify(params));
-    let useParams = true;
-
-    // what happens if i don't check for empty object ?? 
-    if (
-      (typeof params === "object" && Object.keys(params).length === 0) ||
-      (Array.isArray(params) && params.length === 0)
-    ) {
-      useParams = false;
-    }
-
     const resolvePath = `${this.config.deeplink_schema}://redirect-handle`;
-    let url = `${baseURL}?${objectToQueryParams(
-      queryParams
-    )}&resolveRoute=${resolvePath}${useParams ? "#params=" + encodedParams : ""
-      }`;
+    let url = `${baseURL}?${objectToQueryParams(queryParams)}&resolveRoute=${resolvePath}#params=${encodedParams}`;
     try {
       if (await InAppBrowser.isAvailable()) {
         // close any existing sessions in background - https://github.com/proyecto26/react-native-inappbrowser/issues/254
         await InAppBrowser.closeAuth();
         // openAuth session, save response in 'respose'
-
+        console.log("EOPN", url);
         const response = await InAppBrowser.openAuth(url, resolvePath, {
           ephemeralWebSession: false,
           showTitle: false,
           enableUrlBarHiding: true,
           enableDefaultShare: false
         });
+
         // parse the response, send data back to app
+        // 'response.type === 'success'' means that inAppBrowser redirected back to app successfully, it does not mean the intended task completed successfully.
+        // the intended task completed successfully, if isComplete=true in response url.
         if (response.type === 'success' && response.url) {
+          console.log("res", response.url);
           const url = new URL(response.url);
+          const queryParams = new URLSearchParams(url.search);
           this._resultCallback(
-            {
-              result:
-                atob(`${new URLSearchParams(url.search).get("result")}`) || "",
-              method: new URLSearchParams(url.search).get("method"),
-            },
-            CallbackMsgType.SUCCESS
+              rpcResponse((queryParams.get("isComplete") === 'true')? CallbackMsgType.SUCCESS: CallbackMsgType.ERROR, atob(`${queryParams.get("result")}`), queryParams.get("method") ||'')
           );
           return;
         } else if (response.type === 'cancel' || response.type === 'dismiss') {
-          this._resultCallback(
-            response, CallbackMsgType.CANCEL
-          );
+          this._resultCallback(rpcResponse(CallbackMsgType.CANCEL));
           return;
         }
-        this._resultCallback(
-          undefined, CallbackMsgType.ERROR
-        );
+        this._resultCallback(rpcResponse(CallbackMsgType.ERROR));
       }
+      this._resultCallback(rpcResponse(CallbackMsgType.ERROR, "InAppBrowser not available"));
       return;
     } catch (e) {
-      try {
-        // console.error("DOING FALLBACK", e);
-        // in app browser fails, try the default browser
-        // await Linking.openURL(url).catch(e => this._resultCallback(`Error opening URL: ${JSON.stringify(e)}`, CallbackMsgType.ERROR))
-      } catch (e_linking) {
-        // if default browser fails too, return error.
-        this._resultCallback(`Error opening URL: ${JSON.stringify(e_linking)}`, CallbackMsgType.ERROR)
-      }
+      this._resultCallback(rpcResponse(CallbackMsgType.ERROR, `Error opening URL: ${JSON.stringify(e)}`))
     }
   }
 
   onResult(linkingObject: any,
-    callback: (event: any, type?: CallbackMsgType) => void
+           callback: (result: SdkRpc) => void
   ) {
     this._resultCallback = callback;
     linkingObject.addEventListener("url", (resultUrl: any) => {
       const url = new URL(resultUrl.url);
       callback(
-        {
-          result: JSON.parse(
-            atob(`${new URLSearchParams(url.search).get("result")}`) || "{}"
-          ),
-          method: new URLSearchParams(url.search).get("method"),
-        },
-        CallbackMsgType.SUCCESS
+          rpcResponse(CallbackMsgType.SUCCESS, atob(`${new URLSearchParams(url.search).get("result")}`), new URLSearchParams(url.search).get("method") || "")
       );
     });
   }
