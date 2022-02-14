@@ -1,15 +1,14 @@
-import {ProviderConfig, SDKConfig, SdkRpc} from "./interface";
+import {ProviderConfig, SDKConfig, JRPCResponse} from "./interface";
 import {defaultConfig} from "./utils/constants";
 import {CallbackMsgType} from "./utils/enum";
 // atob and btoa are available in the context of the browser,
 // and that's why it works there, not primarily in react native
 import {decode as atob, encode as btoa} from "base-64";
-import {objectToQueryParams, rpcResponse} from "./utils/helper";
 // https://github.com/sideway/joi/issues/2141#issuecomment-558429490
 import "text-encoding-polyfill";
 import InAppBrowser from "react-native-inappbrowser-reborn";
 
-import {URL, URLSearchParams} from "whatwg-url";
+import { parseResponseFromUrl, rpcResponse } from "./utils/helper";
 
 if (typeof BigInt === "undefined") global.BigInt = require("big-integer");
 
@@ -21,7 +20,7 @@ export default class TorusSolanaRNSDK {
       this.config = config;
     }
   }
-  private _resultCallback = (response: SdkRpc) => {
+  private _resultCallback = (response: JRPCResponse) => {
     console.error("CALLBACK NOT REGISTERED");
   };
 
@@ -88,25 +87,26 @@ export default class TorusSolanaRNSDK {
     this.openUrl("nft_transfer", transactionData);
   }
 
-  iframeStatus(iframeData: { isFullScreen: boolean; rid: string }) {
-    this.openUrl("iframe_status", iframeData);
-  }
-
   private async openUrl(method: string, data?: any) {
     if (!this._resultCallback) {
       throw new Error('CALLBACK NOT REGISTERED');
     }
     const baseURL = `${this.config.base_url}/redirectflow`;
-    let params = {};
+    let requestObj = {
+            jsonrpc: "2.0",
+            method,
+            id:1,
+            params: {}
+        };
     switch (method) {
       case "set_provider":
-        params = { ...data };
+        requestObj.params = { ...data };
         break;
       case "iframe_status":
-        params = { ...data };
+        requestObj.params = { ...data };
         break;
       case "topup":
-        params = {
+        requestObj.params = {
           selectedAddress: data.selectedAddress,
           provider: data.provider,
         };
@@ -115,29 +115,26 @@ export default class TorusSolanaRNSDK {
       case "sign_transaction":
       case "sign_all_transactions":
       case "sign_message":
-        params = {
-          message: data,
-        };
+        requestObj.params = {
+          message: data
+        }
         break;
       case "spl_transfer":
       case "nft_transfer":
-        params = { ...data };
+        requestObj.params = { ...data };
         break;
       default:
     }
-
-    let queryParams: { [key: string]: string } = {};
-    queryParams["method"] = method;
-
-    let encodedParams = btoa(JSON.stringify(params));
-    const resolvePath = `${this.config.deeplink_schema}://redirect-handle`;
-    let url = `${baseURL}?${objectToQueryParams(queryParams)}&resolveRoute=${resolvePath}#params=${encodedParams}`;
+    
+    let encodedRequestObj = btoa(JSON.stringify(requestObj));
+    const resolvePath = encodeURIComponent(`${this.config.deeplink_schema}://redirect-handle`);
+    let url = `${baseURL}?resolveRoute=${resolvePath}#redirectflowdata=${encodedRequestObj}`;
     try {
       if (await InAppBrowser.isAvailable()) {
         // close any existing sessions in background - https://github.com/proyecto26/react-native-inappbrowser/issues/254
-        await InAppBrowser.closeAuth();
-        // openAuth session, save response in 'respose'
-        console.log("EOPN", url);
+        InAppBrowser.closeAuth();
+        // openAuth session, save response in 'response'
+        console.log("OPEN", url);
         const response = await InAppBrowser.openAuth(url, resolvePath, {
           ephemeralWebSession: false,
           showTitle: false,
@@ -150,33 +147,32 @@ export default class TorusSolanaRNSDK {
         // the intended task completed successfully, if isComplete=true in response url.
         if (response.type === 'success' && response.url) {
           console.log("res", response.url);
-          const url = new URL(response.url);
-          const queryParams = new URLSearchParams(url.search);
+          const parsedData = parseResponseFromUrl(response.url);
           this._resultCallback(
-              rpcResponse((queryParams.get("isComplete") === 'true')? CallbackMsgType.SUCCESS: CallbackMsgType.ERROR, atob(`${queryParams.get("result")}`), queryParams.get("method") ||'')
+            parsedData
           );
           return;
         } else if (response.type === 'cancel' || response.type === 'dismiss') {
-          this._resultCallback(rpcResponse(CallbackMsgType.CANCEL));
+          this._resultCallback(rpcResponse(CallbackMsgType.CANCEL, method));
           return;
         }
-        this._resultCallback(rpcResponse(CallbackMsgType.ERROR));
+        this._resultCallback(rpcResponse(CallbackMsgType.ERROR, method));
       }
-      this._resultCallback(rpcResponse(CallbackMsgType.ERROR, "InAppBrowser not available"));
+      this._resultCallback(rpcResponse(CallbackMsgType.ERROR, method, "InAppBrowser not available"));
       return;
     } catch (e) {
-      this._resultCallback(rpcResponse(CallbackMsgType.ERROR, `Error opening URL: ${JSON.stringify(e)}`))
+      this._resultCallback(rpcResponse(CallbackMsgType.ERROR, method, `Error opening URL: ${JSON.stringify(e)}`))
     }
   }
 
   onResult(linkingObject: any,
-           callback: (result: SdkRpc) => void
+    callback: (result: JRPCResponse) => void
   ) {
     this._resultCallback = callback;
     linkingObject.addEventListener("url", (resultUrl: any) => {
-      const url = new URL(resultUrl.url);
+      const parsedData = parseResponseFromUrl(resultUrl.url);
       callback(
-          rpcResponse(CallbackMsgType.SUCCESS, atob(`${new URLSearchParams(url.search).get("result")}`), new URLSearchParams(url.search).get("method") || "")
+          parsedData
       );
     });
   }

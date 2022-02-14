@@ -6,7 +6,7 @@ import {View, Button, Text, ScrollView, Linking} from 'react-native';
 
 import {toUTF8Array, generateTransaction, ChainID, networkMap} from './utils';
 import {LogBox} from 'react-native';
-import {SdkRpc} from '@toruslabs/torus-solana-react-sdk/src/interface';
+import {JRPCResponse} from '@toruslabs/torus-solana-react-sdk/src/interface';
 
 LogBox.ignoreLogs(['EventEmitter.removeListener']);
 
@@ -22,7 +22,7 @@ const dummyProviderState = {
 
 // Configure the SDK, get a instance of SDK back.
 const torusSdk = new TorusSolanaRNSDK({
-  base_url: 'http://192.168.0.111:8080',
+  base_url: 'http://192.168.1.2:8080',
   deeplink_schema: 'solanasdk',
 });
 
@@ -52,12 +52,11 @@ const App = () => {
     [pubkey],
   );
 
-  const handleResult = useCallback((val: SdkRpc) => {
-    console.log(val.method);
-    const res = val.result ? JSON.parse(val.result || '') : val.result;
-    switch (val.method) {
+  const handleResult = useCallback((val: JRPCResponse) => {
+    const res = val.result;
+    switch (res.method) {
       case 'login':
-        setPubkey(res.selectedAddress);
+        setPubkey(res.data.selectedAddress);
         break;
       case 'logout':
         setPubkey('');
@@ -65,15 +64,15 @@ const App = () => {
         break;
 
       case 'get_accounts':
-        setPubkey(res);
+        setPubkey(res.data);
         break;
       case 'wallet_get_provider_state':
-        setPubkey(res.accounts[0]);
-        setChainId(res.chainId);
+        setPubkey(res.data.accounts[0]);
+        setChainId(res.data.chainId);
         break;
       case 'nft_list':
-        console.log('RES', res);
-        setNFTS(res);
+        console.log('RES', res.data);
+        setNFTS(res.data);
         break;
       default:
         console.log('default called');
@@ -120,11 +119,13 @@ const App = () => {
     [],
   );
 
-  // All results are dropped in this callback
-  torusSdk.onResult(Linking, (val: SdkRpc) => {
-    console.log('ALL RESULTS HERE', val);
-    handleResult(val);
-  });
+  useEffect(() => {
+    // All results are dropped in this callback
+    torusSdk.onResult(Linking, (val: JRPCResponse) => {
+      console.log('ALL RESULTS HERE', val);
+      handleResult(val);
+    });
+  }, [handleResult]);
 
   return (
     <ScrollView

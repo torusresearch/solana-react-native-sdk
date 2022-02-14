@@ -14,10 +14,13 @@ export interface ProviderConfig {
     displayName: string;
 }
 
-export interface SdkRpc {
+export interface JRPCResponse {
     jsonrpc: string,
-    method?: string,
-    result?: string,
-    status: CallbackMsgType
+    result: {
+        data?: any;
+        success: boolean;
+        message?: string;
+        method: string;
+    },
     id: number;
 }
