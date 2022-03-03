@@ -25,7 +25,7 @@
     "react-native": "^0.66.3",
     "react-native-inappbrowser-reborn": "3.6.0",
     "text-encoding-polyfill": "^0.6.7",
-    "url-parse": "^1.5.4",
+    "url-parse": "^1.5.9",
     "whatwg-url": "^11.0.0"
   }
 }
